@@ -14,12 +14,25 @@ const formatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 });
 
-function Message({ message }: { message: Message }) {
+const nameColors = {
+  assistant: 'text-teal-400',
+  user: 'text-sky-400',
+};
+
+function Message({
+  message,
+  isTyping = false,
+}: {
+  message: Message;
+  isTyping: boolean;
+}) {
   return (
     <div className="space-y-1">
-      <div className="uppercase font-bold text-sm flex justify-between">
-        <span>{message.role == 'assistant' ? 'Bard' : 'You'}</span>
-        <span className="text-gray-500 font-normal text-sm">
+      <div className="uppercase font-bold text-sm flex space-x-3 items-center">
+        <span className={nameColors[message.role]}>
+          {message.role == 'assistant' ? 'Bard' : 'You'}
+        </span>
+        <span className="text-gray-500 font-normal text-xs">
           {formatter.format(message.date)}
         </span>
       </div>
@@ -30,7 +43,7 @@ function Message({ message }: { message: Message }) {
             <span className="sr-only">Loading...</span>
           </div>
         ) : (
-          message.content
+          message.content + (isTyping ? ' ▋' : '')
         )}
       </div>
     </div>
@@ -161,7 +174,11 @@ export default function Index(): JSX.Element {
           <Content>
             <div className="space-y-6 p-6 pt-12">
               {messages.map((m, idx) => (
-                <Message key={`${idx}-${m.date.toUTCString()}`} message={m} />
+                <Message
+                  key={`${idx}-${m.date.toUTCString()}`}
+                  message={m}
+                  isTyping={idx === messages.length - 1 && agentIsAnswering}
+                />
               ))}
             </div>
           </Content>
