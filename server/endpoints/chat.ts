@@ -21,7 +21,7 @@ export default async function (req: NokkioRequest): Promise<Response> {
   };
 
   const chat = await openai.chat.completions.create({
-    model: 'gpt-4',
+    model: 'gpt-4-turbo',
     messages: [
       SYSTEM_INSTRUCTIONS,
       ...history.map((h) => {
