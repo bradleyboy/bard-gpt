@@ -184,7 +184,9 @@ export default function Index(): JSX.Element {
           </Content>
         </div>
       </div>
-      <div className="border-t border-gray-600">
+      <div
+        className={`transition-colors${agentIsAnswering ? '' : ' bg-gray-900'}`}
+      >
         <Content>
           <form className="p-6" onSubmit={handleNewUserPrompt}>
             <input
@@ -192,7 +194,7 @@ export default function Index(): JSX.Element {
               ref={inputRef}
               disabled={agentIsAnswering}
               name="prompt"
-              className="w-full outline-none bg-transparent disabled:text-gray-300"
+              className="w-full outline-none bg-transparent text-gray-200 disabled:text-gray-500 placeholder:text-gray-500"
               placeholder={
                 agentIsAnswering
                   ? 'Agent is answering...'
