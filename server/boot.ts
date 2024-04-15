@@ -26,7 +26,7 @@ export default function boot() {
     // If we have not summarized yet, create one once there are a
     // few messages.
     if (chat.summary === null) {
-      if (chat.messagesCount > 2) {
+      if (chat.messagesCount > 1) {
         await summarizeChat(chat);
       }
 

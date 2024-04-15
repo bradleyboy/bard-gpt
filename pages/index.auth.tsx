@@ -1,9 +1,12 @@
+import { FormEventHandler, useRef, useState } from 'react';
+
 import { Chat } from '@nokkio/magic';
-import { useForm } from '@nokkio/forms';
 import type { AuthPageDataArgs, PageMetadataFunction } from '@nokkio/router';
-import { usePageData, Link } from '@nokkio/router';
+import { useNavigate, usePageData, Link } from '@nokkio/router';
 
 import Content from 'components/Content';
+import PromptForm from 'components/PromptForm';
+import MessageList from 'components/MessageList';
 
 export async function getPageData({ auth }: AuthPageDataArgs) {
   return {
@@ -25,57 +28,94 @@ export const getPageMetadata: PageMetadataFunction = () => {
 };
 
 export default function Index(): JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isCreating, setIsCreating] = useState<string | null>(null);
+  const navigate = useNavigate();
   const { chats, user } = usePageData<typeof getPageData>();
-  const { Form } = useForm(Chat, {
-    redirectOnSuccess: (chat) => {
-      return `/chats/${chat.id}`;
-    },
-    initialValues: { userId: user.id },
-  });
+
+  const handleSubmit: FormEventHandler<HTMLFormElement> = (e) => {
+    e.preventDefault();
+
+    const data = new FormData(e.currentTarget);
+    const prompt = (data.get('prompt') ?? '') as string;
+
+    if (prompt.length > 0) {
+      setIsCreating(prompt);
+      Chat.create({
+        userId: user.id,
+      }).then((chat) => {
+        chat
+          .createMessage({
+            role: 'user',
+            content: prompt,
+            userId: user.id,
+          })
+          .then(() => {
+            navigate(`/chats/${chat.id}`);
+          });
+      });
+    }
+  };
 
   return (
-    <div className="h-full overflow-scroll">
-      <Content>
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold">Bard.</h1>
-              <div className="uppercase text-sm text-gray-400">
-                Recent history from when you bothered Bard last
-              </div>
-            </div>
-
-            <div>
-              <Form>
-                <button className="w-12 h-12 bg-teal-700 hover:bg-teal-500 transition-colors font-bold rounded-xl text-3xl">
-                  +
-                </button>
-              </Form>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {chats.length === 0 && <div>No chats yet. Great.</div>}
-            {chats.map((chat) => (
-              <Link
-                to={`/chats/${chat.id}`}
-                key={chat.id}
-                className="rounded transition-colors bg-gray-900 border border-transparent hover:border-gray-700 p-3 flex justify-between items-center"
-              >
+    <>
+      {isCreating !== null && (
+        <MessageList
+          messages={[
+            { role: 'user', content: isCreating, createdAt: new Date() },
+            { role: 'assistant', content: '', createdAt: new Date() },
+          ]}
+          showTypingIndicator={true}
+        />
+      )}
+      {isCreating === null && (
+        <div className="flex-1 overflow-scroll">
+          <Content>
+            <div className="space-y-6">
+              <div className="flex justify-between">
                 <div className="space-y-1">
-                  <div>{chat.summary ?? 'A chat with you and Bard'}</div>
-                  <div className="uppercase text-sm text-gray-500">
-                    {formatter.format(chat.createdAt)}
+                  <h1 className="text-3xl font-bold">Bard.</h1>
+                  <div className="uppercase text-sm text-gray-400">
+                    Recent history from when you bothered Bard last
                   </div>
                 </div>
-                <div className="w-6 h-6 bg-black text-sm flex items-center justify-center rounded-full">
-                  {chat.messagesCount}
-                </div>
-              </Link>
-            ))}
-          </div>
+              </div>
+
+              <div className="space-y-3">
+                {chats.length === 0 && <div>No chats yet. Great.</div>}
+                {chats.map((chat) => (
+                  <Link
+                    to={`/chats/${chat.id}`}
+                    key={chat.id}
+                    className="rounded transition-colors bg-gray-700 border border-gray-900 hover:border-teal-700 p-6 flex justify-between items-center"
+                  >
+                    <div className="space-y-1 pr-6">
+                      <div>{chat.summary ?? 'A chat with you and Bard'}</div>
+                      <div className="uppercase text-sm text-gray-400">
+                        {formatter.format(chat.createdAt)}
+                      </div>
+                    </div>
+                    <div className="w-6 h-6 bg-gray-800 text-xs flex items-center justify-center rounded-full text-gray-300">
+                      {chat.messagesCount}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </Content>
         </div>
-      </Content>
-    </div>
+      )}
+      <PromptForm
+        ref={inputRef}
+        onSubmit={handleSubmit}
+        isDisabled={isCreating !== null}
+        isDimmed={isCreating !== null}
+        placeholder={
+          isCreating === null
+            ? "Start a new chat with Bard, I'm sure he'll love it."
+            : 'Agent is answering...'
+        }
+      />
+    </>
   );
 }
