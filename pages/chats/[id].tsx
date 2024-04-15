@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, FormEventHandler } from 'react';
 import { Chat, Message } from '@nokkio/magic';
 import { makeRequest } from '@nokkio/endpoints';
 import { usePageData, Link } from '@nokkio/router';
-import type { PageMetadataFunction, AuthPageDataArgs } from '@nokkio/router';
+import type { PageMetadataFunction, PageDataArgs } from '@nokkio/router';
 import { MarkdownPreview } from '@nokkio/markdown';
 
 import useHydrated from 'hooks/useHydrated';
@@ -14,10 +14,7 @@ type ClientMessage = Pick<Message, 'role' | 'content' | 'createdAt'> & {
 };
 type PageParams = { id: string };
 
-export async function getPageData({
-  params,
-  auth,
-}: AuthPageDataArgs<PageParams>) {
+export async function getPageData({ params, auth }: PageDataArgs<PageParams>) {
   return {
     chat: await Chat.findById(params.id, {
       with: { user: true, messages: { limit: 50, sort: '-createdAt' } },
@@ -116,11 +113,20 @@ async function updateChatAndStreamResponse(
     }
 
     // Chunks sometimes contain multiple messages
-    const parsed = decoder.decode(value).trim().split('\n');
+    let parsed = decoder.decode(value).trim();
+    let chunks: Array<string> = [];
+
+    // This is weird, but sometimes a chunk will have two separate messages.
+    // we can't just always split on newlines, since some messages will have them too
+    if (parsed.indexOf('\n{"id":') === -1) {
+      chunks = [parsed];
+    } else {
+      chunks = parsed.split('\n');
+    }
 
     let delta = '';
 
-    parsed.forEach((p) => {
+    chunks.forEach((p) => {
       const message = JSON.parse(p) as {
         choices: Array<{ delta?: { content?: string } }>;
       };
@@ -153,6 +159,10 @@ export default function Index(): JSX.Element {
 
   const handleNewUserPrompt: FormEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault();
+
+    if (!user) {
+      return;
+    }
 
     const d = new FormData(e.currentTarget);
     const content = (d.get('prompt') ?? '') as string;
@@ -188,7 +198,7 @@ export default function Index(): JSX.Element {
   };
 
   useEffect(() => {
-    if (chat?.messages.length === 0) {
+    if (user && chat?.messages.length === 0) {
       Message.create({
         chatId: chat.id,
         userId: user.id,
@@ -196,10 +206,10 @@ export default function Index(): JSX.Element {
         role: OPENING_MESSAGE.role,
       });
     }
-  }, [chat?.messages, chat?.id]);
+  }, [chat?.messages, user, chat?.id]);
 
   useEffect(() => {
-    if (!chat) {
+    if (!chat || !user) {
       return;
     }
 
@@ -240,7 +250,7 @@ export default function Index(): JSX.Element {
         to="/"
         className="absolute m-6 p-3 rounded-xl text-gray-300 hover:text-gray-50 text-sm bg-transparent hover:bg-gray-900 transition-colors"
       >
-        &larr; All chats
+        &larr; {user === null ? 'Login' : 'All chats'}
       </Link>
       <div className="flex-1 overflow-hidden">
         <div className="flex flex-col-reverse w-full max-h-full overflow-y-auto">
@@ -252,7 +262,7 @@ export default function Index(): JSX.Element {
                   message={m}
                   isTyping={idx === messages.length - 1 && agentIsAnswering}
                   username={
-                    user.id !== chat?.user.id ? chat?.user.name : undefined
+                    user?.id !== chat?.user.id ? chat?.user.name : undefined
                   }
                 />
               ))}
@@ -268,13 +278,13 @@ export default function Index(): JSX.Element {
             <input
               autoFocus
               ref={inputRef}
-              disabled={user.id !== chat?.userId || agentIsAnswering}
+              disabled={user?.id !== chat?.userId || agentIsAnswering}
               name="prompt"
               className="w-full outline-none bg-transparent text-gray-200 disabled:text-gray-500 placeholder:text-gray-500"
               placeholder={
                 agentIsAnswering
                   ? 'Agent is answering...'
-                  : user.id !== chat?.userId
+                  : user?.id !== chat?.userId
                     ? 'Only the user who created this chat can continue it'
                     : 'Ask Bard something...'
               }
