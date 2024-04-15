@@ -1,4 +1,4 @@
-import { Html, Head, Body, DocumentProps } from '@nokkio/doc';
+import { NOKKIO_CSP_NONCE, Html, Head, Body, DocumentProps } from '@nokkio/doc';
 
 export default function Document({ children }: DocumentProps): JSX.Element {
   return (
@@ -15,6 +15,11 @@ export default function Document({ children }: DocumentProps): JSX.Element {
           href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
           rel="stylesheet"
         />
+        <script
+          nonce={NOKKIO_CSP_NONCE}
+          src="https://accounts.google.com/gsi/client"
+          async
+        ></script>
       </Head>
       <Body className="overflow-hidden">
         <div id="main">{children}</div>

@@ -3,20 +3,27 @@ import { useState, useEffect, useRef, FormEventHandler } from 'react';
 import { Chat, Message } from '@nokkio/magic';
 import { makeRequest } from '@nokkio/endpoints';
 import { usePageData, Link } from '@nokkio/router';
+import type { PageMetadataFunction, AuthPageDataArgs } from '@nokkio/router';
 import { MarkdownPreview } from '@nokkio/markdown';
 
 import useHydrated from 'hooks/useHydrated';
+import Content from 'components/Content';
 
-import type { PageMetadataFunction, PageDataArgs } from '@nokkio/router';
 type ClientMessage = Pick<Message, 'role' | 'content' | 'createdAt'> & {
   id?: string;
 };
 type PageParams = { id: string };
 
-export async function getPageData({ params }: PageDataArgs<PageParams>) {
-  return Chat.findById(params.id, {
-    with: { messages: { limit: 50, sort: '-createdAt' } },
-  });
+export async function getPageData({
+  params,
+  auth,
+}: AuthPageDataArgs<PageParams>) {
+  return {
+    chat: await Chat.findById(params.id, {
+      with: { messages: { limit: 50, sort: '-createdAt' } },
+    }),
+    user: auth,
+  };
 }
 
 export const getPageMetadata: PageMetadataFunction = () => {
@@ -78,10 +85,6 @@ function MessageEntry({
   );
 }
 
-function Content({ children }: { children: React.ReactNode }) {
-  return <div className="max-w-2xl w-full mx-auto p-6">{children}</div>;
-}
-
 async function updateChatAndStreamResponse(
   messages: Array<ClientMessage>,
   onUpdate: (next: string) => void,
@@ -136,7 +139,7 @@ async function updateChatAndStreamResponse(
 }
 
 export default function Index(): JSX.Element {
-  const chat = usePageData<typeof getPageData>();
+  const { chat, user } = usePageData<typeof getPageData>();
   const inputRef = useRef<HTMLInputElement>(null);
   const [agentIsAnswering, setAgentIsAnswering] = useState(false);
   const [messages, setMessages] = useState<Array<ClientMessage>>(
@@ -169,7 +172,12 @@ export default function Index(): JSX.Element {
         ];
       });
 
-      Message.create({ chatId: chat!.id, role: 'user', content });
+      Message.create({
+        chatId: chat!.id,
+        role: 'user',
+        content,
+        userId: user.id,
+      });
 
       setAgentIsAnswering(true);
     }
@@ -181,6 +189,7 @@ export default function Index(): JSX.Element {
     if (chat?.messages.length === 0) {
       Message.create({
         chatId: chat.id,
+        userId: user.id,
         ...OPENING_MESSAGE,
       });
     }
@@ -208,6 +217,7 @@ export default function Index(): JSX.Element {
       }).then(() => {
         Message.create({
           chatId: chat!.id,
+          userId: user.id,
           role: 'assistant',
           content,
         });
@@ -224,7 +234,7 @@ export default function Index(): JSX.Element {
   return (
     <>
       <Link
-        to="/chats"
+        to="/"
         className="absolute m-6 p-3 rounded-xl text-gray-300 hover:text-gray-50 text-sm bg-transparent hover:bg-gray-900 transition-colors"
       >
         &larr; All chats
