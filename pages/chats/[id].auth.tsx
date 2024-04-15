@@ -20,7 +20,7 @@ export async function getPageData({
 }: AuthPageDataArgs<PageParams>) {
   return {
     chat: await Chat.findById(params.id, {
-      with: { messages: { limit: 50, sort: '-createdAt' } },
+      with: { user: true, messages: { limit: 50, sort: '-createdAt' } },
     }),
     user: auth,
   };
@@ -48,9 +48,11 @@ const OPENING_MESSAGE = {
 
 function MessageEntry({
   message,
+  username,
   isTyping = false,
 }: {
   message: ClientMessage;
+  username?: string;
   isTyping: boolean;
 }) {
   const isHydrated = useHydrated();
@@ -59,7 +61,7 @@ function MessageEntry({
     <div className="space-y-1">
       <div className="uppercase font-bold text-sm flex space-x-3 items-center">
         <span className={nameColors[message.role]}>
-          {message.role == 'assistant' ? 'Bard' : 'You'}
+          {message.role == 'assistant' ? 'Bard' : username ?? 'You'}
         </span>
         {isHydrated && (
           <span className="text-gray-500 font-normal text-xs">
@@ -190,7 +192,8 @@ export default function Index(): JSX.Element {
       Message.create({
         chatId: chat.id,
         userId: user.id,
-        ...OPENING_MESSAGE,
+        content: OPENING_MESSAGE.content,
+        role: OPENING_MESSAGE.role,
       });
     }
   }, [chat?.messages, chat?.id]);
@@ -248,6 +251,9 @@ export default function Index(): JSX.Element {
                   key={`${idx}-${m.createdAt.toUTCString()}`}
                   message={m}
                   isTyping={idx === messages.length - 1 && agentIsAnswering}
+                  username={
+                    user.id !== chat?.user.id ? chat?.user.name : undefined
+                  }
                 />
               ))}
             </div>
@@ -262,13 +268,15 @@ export default function Index(): JSX.Element {
             <input
               autoFocus
               ref={inputRef}
-              disabled={agentIsAnswering}
+              disabled={user.id !== chat?.userId || agentIsAnswering}
               name="prompt"
               className="w-full outline-none bg-transparent text-gray-200 disabled:text-gray-500 placeholder:text-gray-500"
               placeholder={
                 agentIsAnswering
                   ? 'Agent is answering...'
-                  : 'Ask Bard something...'
+                  : user.id !== chat?.userId
+                    ? 'Only the user who created this chat can continue it'
+                    : 'Ask Bard something...'
               }
             />
           </form>
