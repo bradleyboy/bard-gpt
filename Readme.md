@@ -15,4 +15,4 @@ Todo:
 - [x] while the bot is typing, show a cursor at the end
 - [x] color the agent and user names differently
 - [ ] abstract away some of the gross logic for mediating the stream to a useChat hook or something
-- [ ] add a summary, change it whenever 10 messages have passed since the last time
+- [x] add a summary, change it whenever 10 messages have passed since the last time

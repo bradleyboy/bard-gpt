@@ -1,12 +1,6 @@
-import OpenAI from 'npm:openai@^4.33';
-
+import { openai } from 'server/ai/openai.ts';
 import { Message } from '@nokkio/magic';
-import { getSecret } from '@nokkio/endpoints';
 import type { NokkioRequest } from '@nokkio/endpoints';
-
-export const openai = new OpenAI({
-  apiKey: getSecret('openAIApiKey'),
-});
 
 type ClientMessage = Omit<Message, 'id'> & {
   id?: string;
