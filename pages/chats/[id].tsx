@@ -248,14 +248,14 @@ export default function Index(): JSX.Element {
     <>
       <Link
         to="/"
-        className="absolute m-6 p-3 rounded-xl text-gray-300 hover:text-gray-50 text-sm bg-transparent hover:bg-gray-900 transition-colors"
+        className="lg:absolute text-center m-3 lg:m-6 p-3 rounded-xl text-gray-300 hover:text-gray-50 text-sm bg-transparent hover:bg-gray-900 transition-colors"
       >
         &larr; {user === null ? 'Login' : 'All chats'}
       </Link>
       <div className="flex-1 overflow-hidden">
         <div className="flex flex-col-reverse w-full max-h-full overflow-y-auto">
           <Content>
-            <div className="space-y-8 pt-2">
+            <div className="space-y-8 lg:pt-6">
               {messages.map((m, idx) => (
                 <MessageEntry
                   key={`${idx}-${m.createdAt.toUTCString()}`}
