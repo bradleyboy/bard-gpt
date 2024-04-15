@@ -1,5 +1,6 @@
 import OpenAI from 'npm:openai@^4.33';
 
+import { Message } from '@nokkio/magic';
 import { getSecret } from '@nokkio/endpoints';
 import type { NokkioRequest } from '@nokkio/endpoints';
 
@@ -7,7 +8,9 @@ export const openai = new OpenAI({
   apiKey: getSecret('openAIApiKey'),
 });
 
-type Message = { role: 'assistant' | 'user'; content: string; date: Date };
+type ClientMessage = Omit<Message, 'id'> & {
+  id?: string;
+};
 
 const SYSTEM_INSTRUCTIONS = {
   role: 'system',
@@ -17,7 +20,7 @@ const SYSTEM_INSTRUCTIONS = {
 
 export default async function (req: NokkioRequest): Promise<Response> {
   const { history } = (await req.json()) as {
-    history: Array<Message>;
+    history: Array<ClientMessage>;
   };
 
   const chat = await openai.chat.completions.create({
@@ -25,8 +28,8 @@ export default async function (req: NokkioRequest): Promise<Response> {
     messages: [
       SYSTEM_INSTRUCTIONS,
       ...history.map((h) => {
-        const { date: _, ...rest } = h;
-        return rest;
+        const { role, content } = h;
+        return { role, content };
       }),
     ],
     stream: true,
