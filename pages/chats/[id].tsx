@@ -150,12 +150,14 @@ export default function Index(): JSX.Element {
   const { chat, user } = usePageData<typeof getPageData>();
   const inputRef = useRef<HTMLInputElement>(null);
   const [agentIsAnswering, setAgentIsAnswering] = useState(false);
-  const [messages, setMessages] = useState<Array<ClientMessage>>(
-    chat?.messages && chat.messages.length > 0
-      ? // reverse since we sort: -createdAt when fetching/limiting
-        chat.messages.reverse()
-      : [OPENING_MESSAGE],
-  );
+  const [messages, setMessages] = useState<Array<ClientMessage>>(() => {
+    if (chat?.messages && chat.messages.length > 0) {
+      const copy = [...chat.messages];
+      return copy.reverse();
+    }
+
+    return [OPENING_MESSAGE];
+  });
 
   const handleNewUserPrompt: FormEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault();
