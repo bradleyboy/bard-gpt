@@ -18,7 +18,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "nokkio:ci": "tsc"
+    "nokkio:ci": "tsc && nokkio typecheck-server"
   },
   "nokkio": {
     "id": "2f6TuUFKYP3b4ReATsgHJc7HQj3",
