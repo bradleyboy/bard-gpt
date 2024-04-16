@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, FormEventHandler } from 'react';
 
-import { Chat, Message } from '@nokkio/magic';
+import { Chat } from '@nokkio/magic';
 import { makeRequest } from '@nokkio/endpoints';
 import { usePageData } from '@nokkio/router';
 import type { PageMetadataFunction, PageDataArgs } from '@nokkio/router';
@@ -32,13 +32,14 @@ const OPENING_MESSAGE = {
 } as const;
 
 async function updateChatAndStreamResponse(
-  messages: Array<ClientMessage>,
+  chat: Chat,
+  message: Pick<ClientMessage, 'id' | 'role' | 'content'>,
   onUpdate: (next: string) => void,
 ): Promise<void> {
   const decoder = new TextDecoder();
-  const response = await makeRequest('/chat', {
+  const response = await makeRequest(`/chats/${chat.id}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ history: messages }),
+    body: JSON.stringify(message),
     headers: { 'Content-Type': 'application/json' },
   });
 
@@ -156,29 +157,11 @@ export default function Index(): JSX.Element {
         ];
       });
 
-      Message.create({
-        chatId: chat!.id,
-        role: 'user',
-        content,
-        userId: user.id,
-      });
-
       setAgentIsAnswering(true);
     }
 
     e.currentTarget.reset();
   };
-
-  useEffect(() => {
-    if (user && chat?.messages.length === 0) {
-      Message.create({
-        chatId: chat.id,
-        userId: user.id,
-        content: OPENING_MESSAGE.content,
-        role: OPENING_MESSAGE.role,
-      });
-    }
-  }, [chat?.messages, user, chat?.id]);
 
   useEffect(() => {
     if (!chat || !user) {
@@ -192,20 +175,32 @@ export default function Index(): JSX.Element {
       // another dependency to this hook.
       let content = '';
 
-      updateChatAndStreamResponse(messages, (next) => {
-        content += next;
-        setMessages((messages) => {
-          const copy = [...messages];
-          copy[copy.length - 1].content += next;
-          return copy;
-        });
-      }).then(() => {
-        Message.create({
-          chatId: chat!.id,
-          userId: user.id,
-          role: 'assistant',
-          content,
-        });
+      const userMessage = messages.findLast((m) => m.role === 'user');
+
+      if (!userMessage) {
+        console.error('could not find user message');
+        setAgentIsAnswering(false);
+        return;
+      }
+
+      updateChatAndStreamResponse(
+        chat,
+        { id: userMessage.id, role: 'user', content: userMessage.content },
+        (next) => {
+          content += next;
+          setMessages((messages) => {
+            const copy = [...messages];
+            copy[copy.length - 1].content += next;
+            return copy;
+          });
+        },
+      ).then(() => {
+        // This is a bit weird. To work around how the chat messaging endpoint does
+        // not trigger a reload of this collection, we have to force it here, otherwise
+        // the observable cache can get out of sync. TODO: Fix this in Nokkio so that
+        // endpoint invocations track and send back headers for changed models, which
+        // would then trigger this automatically.
+        chat.messages.reload();
         setAgentIsAnswering(false);
       });
     } else {

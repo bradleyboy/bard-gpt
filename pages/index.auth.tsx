@@ -3,6 +3,7 @@ import { FormEventHandler, useRef, useState } from 'react';
 import { Chat } from '@nokkio/magic';
 import type { AuthPageDataArgs, PageMetadataFunction } from '@nokkio/router';
 import { useNavigate, usePageData, Link } from '@nokkio/router';
+import { makeRequest } from '@nokkio/endpoints';
 
 import Content from 'components/Content';
 import PromptForm from 'components/PromptForm';
@@ -31,7 +32,7 @@ export default function Index(): JSX.Element {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isCreating, setIsCreating] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { chats, user } = usePageData<typeof getPageData>();
+  const { chats } = usePageData<typeof getPageData>();
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault();
@@ -41,19 +42,15 @@ export default function Index(): JSX.Element {
 
     if (prompt.length > 0) {
       setIsCreating(prompt);
-      Chat.create({
-        userId: user.id,
-      }).then((chat) => {
-        chat
-          .createMessage({
-            role: 'user',
-            content: prompt,
-            userId: user.id,
-          })
-          .then(() => {
-            navigate(`/chats/${chat.id}`);
-          });
-      });
+      makeRequest('/chats', {
+        method: 'POST',
+        body: JSON.stringify({ prompt }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+        .then((r) => r.json())
+        .then(({ id }) => {
+          navigate(`/chats/${id}`);
+        });
     }
   };
 

@@ -1,11 +1,8 @@
-import { openai } from 'server/ai/openai.ts';
-import { Message } from '@nokkio/magic';
 import type { NokkioRequest } from '@nokkio/endpoints';
-import { decode } from 'https://deno.land/std@0.201.0/encoding/base64.ts';
+import { Chat } from '@nokkio/magic';
+import { NotAuthorizedError, NotFoundError } from '@nokkio/errors';
 
-type ClientMessage = Omit<Message, 'id'> & {
-  id?: string;
-};
+import { openai } from 'server/ai/openai.ts';
 
 const SYSTEM_INSTRUCTIONS = {
   role: 'system',
@@ -23,9 +20,9 @@ Other rules to follow:
 * If you present the user math notations, always do so in unicode. NEVER use latex.`,
 } as const;
 
-async function readAndEmitRecord(r: ReadableStream): Promise<void> {
+async function readAndEmitRecord(chat: Chat, r: ReadableStream): Promise<void> {
   const reader = r.getReader();
-  let message = '';
+  let content = '';
 
   while (true) {
     const { done, value } = await reader.read();
@@ -45,20 +42,56 @@ async function readAndEmitRecord(r: ReadableStream): Promise<void> {
       const next = parsed.choices[0].delta?.content;
 
       if (typeof next === 'string') {
-        message += next;
+        content += next;
       }
     }
   }
 
-  console.log(message);
+  await chat.createMessage({
+    userId: chat.userId,
+    role: 'assistant',
+    content,
+  });
 }
 
 export default async function (req: NokkioRequest): Promise<Response> {
-  const { history } = (await req.json()) as {
-    history: Array<ClientMessage>;
+  const chatId = req.params.id as string;
+  const userId = req.userId;
+
+  if (!userId) {
+    throw new NotAuthorizedError();
+  }
+
+  const chat = await Chat.findById(chatId, {
+    with: {
+      messages: {
+        sort: '-createdAt',
+        limit: 50,
+      },
+    },
+  });
+
+  if (!chat) {
+    throw new NotFoundError();
+  }
+
+  const history = chat.messages.reverse();
+
+  const { content, role, id } = (await req.json()) as {
+    id?: string;
+    role: 'assistant' | 'user';
+    content: string;
   };
 
-  const chat = await openai.chat.completions.create({
+  if (!id) {
+    await chat.createMessage({
+      userId,
+      role,
+      content,
+    });
+  }
+
+  const completion = await openai.chat.completions.create({
     model: 'gpt-4-turbo',
     messages: [
       SYSTEM_INSTRUCTIONS,
@@ -66,13 +99,16 @@ export default async function (req: NokkioRequest): Promise<Response> {
         const { role, content } = h;
         return { role, content };
       }),
+      { role, content },
     ],
     stream: true,
   });
 
-  const [one, two] = chat.toReadableStream().tee();
+  // tee the stream so we can also track and save it to a new
+  // Message once it is complete.
+  const [response, emit] = completion.toReadableStream().tee();
 
-  readAndEmitRecord(two);
+  readAndEmitRecord(chat, emit);
 
-  return new Response(one);
+  return new Response(response);
 }
