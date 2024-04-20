@@ -15,7 +15,7 @@ type PageParams = { id: string };
 export async function getPageData({ params, auth }: PageDataArgs<PageParams>) {
   return {
     chat: await Chat.findById(params.id, {
-      with: { user: true, messages: { limit: 20, sort: '-createdAt' } },
+      with: { user: true, messages: { limit: 50, sort: '-createdAt' } },
     }),
     user: auth,
   };
