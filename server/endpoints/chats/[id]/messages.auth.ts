@@ -2,7 +2,7 @@ import type { NokkioRequest } from '@nokkio/endpoints';
 import { Chat } from '@nokkio/magic';
 import { NotAuthorizedError, NotFoundError } from '@nokkio/errors';
 
-import { openai } from 'server/ai/openai.ts';
+import { CHAT_MODEL, openai } from 'server/ai/openai.ts';
 
 const SYSTEM_INSTRUCTIONS = {
   role: 'system',
@@ -75,7 +75,10 @@ export default async function (req: NokkioRequest): Promise<Response> {
     throw new NotFoundError();
   }
 
-  const history = chat.messages.reverse();
+  const history = chat.messages.reverse().map((h) => {
+    const { role, content } = h;
+    return { role, content };
+  });
 
   const { content, role, id } = (await req.json()) as {
     id?: string;
@@ -83,24 +86,24 @@ export default async function (req: NokkioRequest): Promise<Response> {
     content: string;
   };
 
+  // If the message does not exist yet, create it and attach
+  // to the chat, and also append it to the history.
   if (!id) {
     await chat.createMessage({
       userId,
       role,
       content,
     });
+
+    history.push({
+      role,
+      content,
+    });
   }
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo',
-    messages: [
-      SYSTEM_INSTRUCTIONS,
-      ...history.map((h) => {
-        const { role, content } = h;
-        return { role, content };
-      }),
-      { role, content },
-    ],
+    model: CHAT_MODEL,
+    messages: [SYSTEM_INSTRUCTIONS, ...history],
     stream: true,
   });
 

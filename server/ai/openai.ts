@@ -1,11 +1,28 @@
+import process from 'node:process';
+
 import OpenAI from 'npm:openai@^4.33';
 
 import { getSecret } from '@nokkio/endpoints';
 import { ChatWith, Message } from '@nokkio/magic';
 
-export const openai = new OpenAI({
-  apiKey: getSecret('openAIApiKey'),
-});
+const AI_BACKENDS = {
+  openai: {
+    apiKey: getSecret('openAIApiKey'),
+    model: 'gpt-4-turbo',
+  },
+  llama: {
+    apiKey: 'not-needed',
+    baseURL: 'http://localhost:1234/v1',
+    model:
+      'lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',
+  },
+};
+
+const backend =
+  AI_BACKENDS[process.env.NODE_ENV === 'development' ? 'llama' : 'openai'];
+export const CHAT_MODEL = backend.model;
+
+export const openai = new OpenAI(backend);
 
 export async function summarizeChat(
   chat: ChatWith<'messagesCount'>,
@@ -13,7 +30,7 @@ export async function summarizeChat(
   const messages = await Message.findForChat(chat.id);
 
   const result = await openai.chat.completions.create({
-    model: 'gpt-4-turbo',
+    model: backend.model,
     messages: [
       ...messages.map((h) => {
         const { role, content } = h;
