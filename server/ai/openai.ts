@@ -16,12 +16,11 @@ const AI_BACKENDS = {
     model:
       'lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',
   },
-};
+} as const;
 
-const backend =
-  AI_BACKENDS[process.env.NODE_ENV === 'development' ? 'llama' : 'openai'];
+const backend = AI_BACKENDS[NOKKIO_ENV.AI_BACKEND as keyof typeof AI_BACKENDS];
+
 export const CHAT_MODEL = backend.model;
-
 export const openai = new OpenAI(backend);
 
 export async function summarizeChat(

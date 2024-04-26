@@ -1,3 +1,8 @@
 {
-  "importMap": "./node_modules/@nokkio/import_map.json"
+  "importMap": "node_modules/@nokkio/import_map.json",
+  "compilerOptions": {
+    "types": [
+      "./nokkio.d.ts",
+    ]
+  }
 }

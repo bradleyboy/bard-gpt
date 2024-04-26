@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.0.1",
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.12",
@@ -22,6 +22,6 @@
   },
   "nokkio": {
     "id": "2f6TuUFKYP3b4ReATsgHJc7HQj3",
-    "version": "v0.0.71"
+    "version": "v0.0.0-081e5be8-1714159633"
   }
 }
