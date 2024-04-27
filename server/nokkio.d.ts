@@ -1,5 +1,5 @@
 declare global {
-  var NOKKIO_ENV: Record<string, string | number>;
+  const NOKKIO_ENV: Record<string, string | number>;
 }
 
 export {};

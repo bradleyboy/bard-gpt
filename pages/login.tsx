@@ -12,7 +12,7 @@ export default function Login() {
     if (auth.isAuthenticated) {
       navigate('/');
     }
-  }, [auth?.isAuthenticated]);
+  }, [auth?.isAuthenticated, navigate]);
 
   return (
     <div className="flex w-screen h-screen items-center justify-center">

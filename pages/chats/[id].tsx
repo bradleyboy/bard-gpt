@@ -61,7 +61,7 @@ async function updateChatAndStreamResponse(
     }
 
     // Chunks sometimes contain multiple messages
-    let parsed = decoder.decode(value).trim();
+    const parsed = decoder.decode(value).trim();
     let chunks: Array<string> = [];
 
     // This is weird, but sometimes a chunk will have two separate messages.
@@ -163,21 +163,19 @@ export default function Index(): JSX.Element {
     e.currentTarget.reset();
   };
 
+  // Do this out here so we don't have to make the hook below dependent on the entire
+  // messages object.
+  const lastUserMessage = messages.findLast((m) => m.role === 'user');
+
   useEffect(() => {
-    if (!chat || !user) {
+    if (!chat) {
       return;
     }
 
     // If agentIsAnswering changes from false -> true, time to kick
     // off a new agent response.
     if (agentIsAnswering) {
-      // Build this up over time locally so we don't have to introduce
-      // another dependency to this hook.
-      let content = '';
-
-      const userMessage = messages.findLast((m) => m.role === 'user');
-
-      if (!userMessage) {
+      if (!lastUserMessage) {
         console.error('could not find user message');
         setAgentIsAnswering(false);
         return;
@@ -185,9 +183,12 @@ export default function Index(): JSX.Element {
 
       updateChatAndStreamResponse(
         chat,
-        { id: userMessage.id, role: 'user', content: userMessage.content },
+        {
+          id: lastUserMessage.id,
+          role: 'user',
+          content: lastUserMessage.content,
+        },
         (next) => {
-          content += next;
           setMessages((messages) => {
             const copy = [...messages];
             copy[copy.length - 1].content += next;
@@ -209,7 +210,7 @@ export default function Index(): JSX.Element {
       // prior to setting focus
       inputRef.current?.focus();
     }
-  }, [agentIsAnswering]);
+  }, [agentIsAnswering, chat, lastUserMessage]);
 
   return (
     <>

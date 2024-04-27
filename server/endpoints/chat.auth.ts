@@ -1,7 +1,6 @@
 import { openai } from 'server/ai/openai.ts';
 import { Message } from '@nokkio/magic';
 import type { NokkioRequest } from '@nokkio/endpoints';
-import { decode } from 'https://deno.land/std@0.201.0/encoding/base64.ts';
 
 type ClientMessage = Omit<Message, 'id'> & {
   id?: string;

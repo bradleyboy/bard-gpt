@@ -1,5 +1,3 @@
-import process from 'node:process';
-
 import OpenAI from 'npm:openai@^4.33';
 
 import { getSecret } from '@nokkio/endpoints';
