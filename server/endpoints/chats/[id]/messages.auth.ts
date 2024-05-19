@@ -1,5 +1,5 @@
 import type { NokkioRequest } from '@nokkio/endpoints';
-import { Chat } from '@nokkio/magic';
+import { Chat, Message } from '@nokkio/magic';
 import { NotAuthorizedError, NotFoundError } from '@nokkio/errors';
 
 import { CHAT_MODEL, openai } from 'server/ai/openai.ts';
@@ -80,9 +80,10 @@ export default async function (req: NokkioRequest): Promise<Response> {
     return { role, content };
   });
 
-  const { content, role, id } = (await req.json()) as {
+  const { content, role, type, id } = (await req.json()) as {
     id?: string;
     role: 'assistant' | 'user';
+    type: Message['type'];
     content: string;
   };
 
@@ -92,6 +93,7 @@ export default async function (req: NokkioRequest): Promise<Response> {
     await chat.createMessage({
       userId,
       role,
+      type,
       content,
     });
 

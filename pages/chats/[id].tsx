@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, FormEventHandler } from 'react';
 
-import { Chat } from '@nokkio/magic';
+import { Chat, Message } from '@nokkio/magic';
 import { makeRequest } from '@nokkio/endpoints';
 import { usePageData } from '@nokkio/router';
 import type { PageMetadataFunction, PageDataArgs } from '@nokkio/router';
@@ -28,14 +28,75 @@ export const getPageMetadata: PageMetadataFunction = () => {
 const OPENING_MESSAGE = {
   role: 'assistant',
   content: 'Oh great. What do you want?',
+  type: 'chat',
   createdAt: new Date(),
 } as const;
 
+type ChatUpdateMessage =
+  | { type: 'chunk'; chunk: string }
+  | { type: 'classify'; result: ClientMessage['type'] }
+  | { type: 'image'; message: ClientMessage };
+
+async function classifyPrompt(
+  chat: Chat,
+  prompt: string,
+): Promise<ClientMessage['type']> {
+  const response = await makeRequest(`/chats/${chat.id}/classify`, {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return (await response.json()).type;
+}
+
+async function getImageMessage(
+  chat: Chat,
+  input: Pick<ClientMessage, 'id' | 'type' | 'role' | 'content'>,
+): Promise<ClientMessage> {
+  const response = await makeRequest(`/chats/${chat.id}/image`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const { message } = (await response.json()) as {
+    message: Omit<Message, 'createdAt'> & { createdAt: string };
+  };
+
+  if (message.image === null) {
+    throw new Error('message must have image');
+  }
+
+  return {
+    ...message,
+    createdAt: new Date(message.createdAt),
+  };
+}
+
 async function updateChatAndStreamResponse(
   chat: Chat,
-  message: Pick<ClientMessage, 'id' | 'role' | 'content'>,
-  onUpdate: (next: string) => void,
+  message: Pick<ClientMessage, 'id' | 'type' | 'role' | 'content'>,
+  onUpdate: (message: ChatUpdateMessage) => void,
 ): Promise<void> {
+  const type = await classifyPrompt(chat, message.content);
+  onUpdate({ type: 'classify', result: type });
+
+  if (type === 'image') {
+    const imageMessage = await getImageMessage(chat, message);
+    onUpdate({ type: 'image', message: imageMessage });
+    return;
+    // TODO: then continue with chat message where assistant describes image
+  }
+
   const decoder = new TextDecoder();
   const response = await makeRequest(`/chats/${chat.id}/messages`, {
     method: 'POST',
@@ -90,7 +151,7 @@ async function updateChatAndStreamResponse(
       }
     });
 
-    onUpdate(delta);
+    onUpdate({ type: 'chunk', chunk: delta });
   }
 }
 
@@ -118,6 +179,7 @@ export default function Index(): JSX.Element {
           {
             role: 'assistant',
             content: '',
+            type: 'chat',
             createdAt: new Date(),
           },
         ];
@@ -147,11 +209,13 @@ export default function Index(): JSX.Element {
           {
             role: 'user',
             content,
+            type: 'chat',
             createdAt: new Date(),
           },
           {
             role: 'assistant',
             content: '',
+            type: 'chat',
             createdAt: new Date(),
           },
         ];
@@ -187,11 +251,24 @@ export default function Index(): JSX.Element {
           id: lastUserMessage.id,
           role: 'user',
           content: lastUserMessage.content,
+          type: lastUserMessage.type,
         },
         (next) => {
           setMessages((messages) => {
             const copy = [...messages];
-            copy[copy.length - 1].content += next;
+
+            if (next.type === 'classify') {
+              copy[copy.length - 1].type = next.result;
+            }
+
+            if (next.type === 'image') {
+              copy[copy.length - 1] = next.message;
+            }
+
+            if (next.type === 'chunk') {
+              copy[copy.length - 1].content += next.chunk;
+            }
+
             return copy;
           });
         },

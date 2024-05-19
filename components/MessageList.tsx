@@ -1,6 +1,7 @@
 import { MarkdownPreview } from '@nokkio/markdown';
 import { Link } from '@nokkio/router';
 import { useAuth } from '@nokkio/auth';
+import { Img } from '@nokkio/image';
 
 import useHydrated from 'hooks/useHydrated';
 import type { ClientMessage } from 'types';
@@ -43,9 +44,13 @@ function MessageEntry({
       <div className="text-gray-200">
         {message.content === '' ? (
           <div role="status" className="animate-pulse">
-            <div className="h-2.5 mt-3 bg-gray-600 rounded dark:bg-gray-700 w-1/2"></div>
+            <div
+              className={`transition-all mt-3 bg-gray-600 rounded dark:bg-gray-700 ${message.type === 'image' ? 'w-full aspect-[7/4]' : 'h-2.5 w-1/2'}`}
+            ></div>
             <span className="sr-only">Loading...</span>
           </div>
+        ) : message.type === 'image' ? (
+          <Img className="mt-3" image={message.image!} />
         ) : (
           <MarkdownPreview
             as="div"

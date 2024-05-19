@@ -16,6 +16,8 @@ module.exports = function ({ defineModel, types }) {
   const Message = defineModel('Message', {
     role: types.string().oneOf(['assistant', 'user']),
     content: types.text(),
+    type: types.string('chat').oneOf(['chat', 'image']),
+    image: types.image(null),
   });
 
   User.hasMany(Chat);

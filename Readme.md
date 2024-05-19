@@ -21,5 +21,5 @@ Todo:
 - [ ] avatars for bot and user
 - [ ] idea: Nokkio helper for StreamingResponse, that provided a callback to stream in chunks
 - [ ] make scrolling elastic-y
-- [ ] detect image queries and redirect to dall-e
-      - would need to add an optional image field to Message
+- [x] detect image queries and redirect to dall-e
+- [ ] maybe make the image endpoint stream, and tee the stream to save in order to reduce latency?
