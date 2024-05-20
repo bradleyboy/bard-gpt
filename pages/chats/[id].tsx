@@ -40,7 +40,7 @@ type ChatUpdateMessage =
 async function classifyPrompt(
   chat: Chat,
   prompt: string,
-): Promise<ClientMessage['type']> {
+): Promise<{ type: 'chat' } | { type: 'image'; reference_url?: string }> {
   const response = await makeRequest(`/chats/${chat.id}/classify`, {
     method: 'POST',
     body: JSON.stringify({ prompt }),
@@ -51,16 +51,17 @@ async function classifyPrompt(
     throw new Error(await response.text());
   }
 
-  return (await response.json()).type;
+  return await response.json();
 }
 
 async function getImageMessage(
   chat: Chat,
   input: Pick<ClientMessage, 'id' | 'type' | 'role' | 'content'>,
+  reference_url?: string,
 ): Promise<ClientMessage> {
   const response = await makeRequest(`/chats/${chat.id}/image`, {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify({ input, reference_url }),
     headers: { 'Content-Type': 'application/json' },
   });
 
@@ -87,11 +88,15 @@ async function updateChatAndStreamResponse(
   message: Pick<ClientMessage, 'id' | 'type' | 'role' | 'content'>,
   onUpdate: (message: ChatUpdateMessage) => void,
 ): Promise<void> {
-  const type = await classifyPrompt(chat, message.content);
-  onUpdate({ type: 'classify', result: type });
+  const classification = await classifyPrompt(chat, message.content);
+  onUpdate({ type: 'classify', result: classification.type });
 
-  if (type === 'image') {
-    const imageMessage = await getImageMessage(chat, message);
+  if (classification.type === 'image') {
+    const imageMessage = await getImageMessage(
+      chat,
+      message,
+      classification.reference_url,
+    );
     onUpdate({ type: 'image', message: imageMessage });
     return;
     // TODO: then continue with chat message where assistant describes image

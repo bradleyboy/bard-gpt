@@ -42,5 +42,5 @@ export async function post(req: NokkioRequest) {
 
   const result = await isImageRequest(history);
 
-  return json({ type: result ? 'image' : 'chat' });
+  return json(result);
 }

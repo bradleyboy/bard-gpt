@@ -4,6 +4,7 @@ import { Chat, Message } from '@nokkio/magic';
 import { NotAuthorizedError, NotFoundError } from '@nokkio/errors';
 
 import { CHAT_MODEL, openai } from 'server/ai/openai.ts';
+import OpenAI from 'npm:openai@^4.33';
 
 const SYSTEM_INSTRUCTIONS = {
   role: 'system',
@@ -31,23 +32,30 @@ export default async function (req: NokkioRequest): Promise<Response> {
     throw new NotFoundError();
   }
 
-  const history = chat.messages.reverse().map((h) => {
-    const { role, content } = h;
-    return {
-      role,
-      content:
-        h.type === 'image'
-          ? `<the assistant generated an image as requested by the previous message. It can be found at ${getPublicFileUrl(h.image!.path)}>`
-          : content,
-    };
-  });
+  const history: Array<OpenAI.Chat.ChatCompletionMessageParam> = chat.messages
+    .reverse()
+    .map((h) => {
+      const { role, content } = h;
+      return {
+        role,
+        content:
+          h.type === 'image'
+            ? `<the assistant generated an image as requested by the previous message. It can be found at ${getPublicFileUrl(h.image!.path)}>`
+            : content,
+      };
+    });
 
-  const { content, role, type, id } = (await req.json()) as {
-    id?: string;
-    role: 'assistant' | 'user';
-    type: Message['type'];
-    content: string;
+  const { input, reference_url } = (await req.json()) as {
+    input: {
+      id?: string;
+      role: 'assistant' | 'user';
+      type: Message['type'];
+      content: string;
+    };
+    reference_url?: string;
   };
+
+  const { content, role, type, id } = input;
 
   // If the message does not exist yet, create it and attach
   // to the chat, and also append it to the history.
@@ -59,10 +67,26 @@ export default async function (req: NokkioRequest): Promise<Response> {
       content,
     });
 
-    history.push({
-      role,
-      content,
-    });
+    // Vision API will fail with an inaccessible image
+    if (reference_url && !reference_url.startsWith('http://localhost')) {
+      history.push({
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: {
+              url: reference_url,
+            },
+          },
+          { type: 'text', text: content },
+        ],
+      });
+    } else {
+      history.push({
+        role,
+        content,
+      });
+    }
   }
 
   const completion = await openai.chat.completions.create({
@@ -85,7 +109,7 @@ export default async function (req: NokkioRequest): Promise<Response> {
   const url = image.data[0].url;
 
   if (!url) {
-    throw new Error('error generating imasge');
+    throw new Error('error generating image');
   }
 
   const r = await fetch(url);

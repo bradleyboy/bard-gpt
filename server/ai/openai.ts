@@ -23,22 +23,43 @@ export const openai = new OpenAI(backend);
 
 export async function isImageRequest(
   history: Array<OpenAI.Chat.ChatCompletionMessageParam>,
-): Promise<boolean> {
+): Promise<{ type: 'chat' } | { type: 'image'; reference_url?: string }> {
   const result = await openai.chat.completions.create({
     model: backend.model,
     messages: [
       {
         role: 'system',
-        content:
-          'you are a classifier that inspects an in-progress conversation. Your job is to determine if the latest message in the conversation from the user is asking for an image to be generated or not. If the user is asking for an image, respond with a 1. If not, respond with 0. Only respond with 1 or 0, no prefix or other output should be returned. If you are unsure in any way, return 0.',
+        content: `
+you are a classifier that inspects an in-progress conversation between a general purpose chat assistant and a user. Your job is to determine if the latest message in the conversation from the user is asking for an image to be generated.
+
+Your reponse should be in JSON format and contain no other output. If you determine that the user is asking for an image, respond like this:
+
+{"type": "image"}
+
+If the user is referencing a previous image in the conversation, add the URL to that image in the payload like this (substitute <url> with the URL that you found):
+
+{"type": "image", reference_url: "<url>"}
+
+If you user is not asking for an image or you are unsure of your classification, respond with:
+
+{"type": "chat"}
+        `,
       },
       ...history,
     ],
   });
 
-  const response = result.choices[0].message.content;
+  const rawJson = result.choices[0].message.content?.trim();
 
-  return Number(response) === 1;
+  if (rawJson) {
+    const json = JSON.parse(rawJson);
+
+    if (json.type === 'chat' || json.type === 'image') {
+      return json;
+    }
+  }
+
+  return { type: 'chat' };
 }
 
 export async function summarizeChat(

@@ -59,8 +59,18 @@ export default function Index(): JSX.Element {
       {isCreating !== null && (
         <MessageList
           messages={[
-            { role: 'user', content: isCreating, createdAt: new Date() },
-            { role: 'assistant', content: '', createdAt: new Date() },
+            {
+              role: 'user',
+              type: 'chat',
+              content: isCreating,
+              createdAt: new Date(),
+            },
+            {
+              role: 'assistant',
+              type: 'chat',
+              content: '',
+              createdAt: new Date(),
+            },
           ]}
           showTypingIndicator={true}
         />
