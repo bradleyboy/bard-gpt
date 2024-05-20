@@ -43,6 +43,8 @@ If the user is referencing a previous image in the conversation, add the URL to 
 If you user is not asking for an image or you are unsure of your classification, respond with:
 
 {"type": "chat"}
+
+ALWAYS RETURN VALID JSON
         `,
       },
       ...history,
@@ -52,10 +54,14 @@ If you user is not asking for an image or you are unsure of your classification,
   const rawJson = result.choices[0].message.content?.trim();
 
   if (rawJson) {
-    const json = JSON.parse(rawJson);
+    try {
+      const json = JSON.parse(rawJson);
 
-    if (json.type === 'chat' || json.type === 'image') {
-      return json;
+      if (json.type === 'chat' || json.type === 'image') {
+        return json;
+      }
+    } catch {
+      // bad model response, just return chat
     }
   }
 

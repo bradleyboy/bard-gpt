@@ -45,12 +45,12 @@ function MessageEntry({
         {message.content === '' ? (
           <div role="status" className="animate-pulse">
             <div
-              className={`transition-all mt-3 bg-gray-600 rounded dark:bg-gray-700 ${message.type === 'image' ? 'w-full aspect-[7/4]' : 'h-2.5 w-1/2'}`}
+              className={`transition-all mt-3 bg-gray-600 rounded dark:bg-gray-700 ${message.type === 'image' ? 'w-full max-w-[512px] aspect-square' : 'h-2.5 w-1/2'}`}
             ></div>
             <span className="sr-only">Loading...</span>
           </div>
         ) : message.type === 'image' ? (
-          <Img className="mt-3" image={message.image!} />
+          <Img width={512} className="mt-3" image={message.image!} />
         ) : (
           <MarkdownPreview
             as="div"

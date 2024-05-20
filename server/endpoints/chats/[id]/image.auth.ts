@@ -103,7 +103,7 @@ export default async function (req: NokkioRequest): Promise<Response> {
   const image = await openai.images.generate({
     model: 'dall-e-3',
     prompt: imagePrompt,
-    size: '1792x1024',
+    size: '1024x1024',
   });
 
   const url = image.data[0].url;
